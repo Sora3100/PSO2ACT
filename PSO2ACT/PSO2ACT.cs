@@ -23,6 +23,7 @@ namespace PSO2ACT
         Queue<string> queueActions = new Queue<string>();
         static ushort currInstID = 0xFFFF;
         static string charName = "";
+        static uint charID = 0;
         Thread logThread;
 
         struct Skill
@@ -128,7 +129,8 @@ namespace PSO2ACT
 
         void oFormActMain_OnCombatStart(bool isImport, CombatToggleEventArgs encounterInfo)
         {
-            if (!isImport)
+            //if (!isImport)
+            if(charName != "")
                 encounterInfo.encounter.CharName = charName;
         }
 
@@ -136,8 +138,32 @@ namespace PSO2ACT
         void oFormActMain_OnCombatEnd(bool isImport, CombatToggleEventArgs encounterInfo)
         {
             currInstID = 0xFFFF;
-            if (!isImport)
+            //if (!isImport)
+            if(charName != "")
                 encounterInfo.encounter.CharName = charName;
+        }
+
+        bool DetectYOU(Action aAction)
+        {
+            if (
+                aAction.timestamp == 0 &&
+                aAction.instanceID == 0 &&
+                aAction.sourceName == "YOU" &&
+                aAction.targetID == 0 &&
+                aAction.targetName == "0" &&
+                aAction.attackID == 0 &&
+                aAction.damage == 0 &&
+                aAction.isJA == false &&
+                aAction.isCrit == false &&
+                aAction.isMultiHit == false &&
+                aAction.isMisc == false &&
+                aAction.isMisc2 == false
+              )
+            {
+                return true;
+            }
+
+            return false;
         }
 
         void oFormActMain_BeforeLogLineRead(bool isImport, LogLineEventArgs logInfo)
@@ -170,6 +196,11 @@ namespace PSO2ACT
                 return;
             }
 
+            if (DetectYOU(aAction))
+            {
+                charID = aAction.sourceID;
+                return;
+            }
             //TODO: deal with when the first thing they do is counter
             if (aAction.targetID == 0 ||
                 (aAction.instanceID == 0 && currInstID == 0xFFFF))
@@ -183,6 +214,23 @@ namespace PSO2ACT
 
             string sourceName = aAction.sourceName + "_" + aAction.sourceID.ToString();
             string targetName = aAction.targetName + "_" + aAction.targetID.ToString();
+
+            if (
+                //!isImport &&
+                charID != 0
+                )
+            {
+                if (charID == aAction.sourceID)
+                {
+                    charName = sourceName;
+                    ActGlobals.charName = charName;
+                }
+                else if (charID == aAction.targetID)
+                {
+                    charName = targetName;
+                    ActGlobals.charName = charName;
+                }
+            }
 
             string actionType = aAction.attackID.ToString();
             string damageType = aAction.attackID.ToString();
